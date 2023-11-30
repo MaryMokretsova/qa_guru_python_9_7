@@ -4,11 +4,10 @@ from pypdf import PdfReader
 
 reader = PdfReader("tmp/test_design.pdf")
 
-# print(reader.pages)
-# print(len(reader.pages))
-#
-# print(reader.pages[0].extract_text())
+print(reader.pages)
+print(len(reader.pages))
 
-# assert "Test Design" in reader.pages[0]
+print(reader.pages[0].extract_text())
 
-printos.path.getsize("tmp/test_design.pdf")
+print(os.path.getsize("tmp/test_design.pdf"))
+assert os.path.getsize("tmp/test_design.pdf") == 174575

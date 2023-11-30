@@ -29,7 +29,6 @@ def test_text_in_dowloaded_file():
     print(download_url)
 
 
-
     content = requests.get(url="https://github.com/pytest-dev/pytest/blob/main/README.rst").content
 
     with open("tmp/readme2.rst", 'wb') as download_file:
