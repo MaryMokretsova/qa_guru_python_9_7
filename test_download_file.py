@@ -1,42 +1,50 @@
-import os.path
-import time
-
-import requests
-from selene import query
-from selene.support.shared import browser
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-
-from script_os import TMP_DIR
+import os.path, shutil, pytest
+from io import BytesIO
+from zipfile import ZipFile
+from pypdf import PdfReader
+from openpyxl import load_workbook
+from pandas import read_csv
 
 
-def test_text_in_dowloaded_file():
-    options = webdriver.ChromeOptions()
-
-    prefs = {
-    "download.default_directory": TMP_DIR,
-    "download.prompt_for_download": False
-    }
-    options.add_experimental_option("prefs", prefs)
-
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-
-    browser.config.driver = driver
-
-    browser.open("https://github.com/pytest-dev/pytest/blob/main/README.rst")
-    download_url = browser.element("[data-testid='raw-button']").get(query.attribute("href"))
-    print(download_url)
+@pytest.fixture
+def folders():
+    if not os.path.exists('resources'):
+        os.mkdir('resources')
+    if not os.path.exists('tmp'):
+        os.mkdir('tmp')
+#
+@pytest.fixture
+def archiving():
+    if not os.path.exists('resources/test_archive.zip'):
+        shutil.make_archive('test_archive', 'zip', 'tmp')
+        shutil.move('test_archive.zip', 'resources/test_archive.zip')
 
 
-    content = requests.get(url="https://github.com/pytest-dev/pytest/blob/main/README.rst").content
+def test_csv(folders, archiving):
+    with ZipFile('resources/test_archive.zip') as archive:
+        file = archive.read('look_me.csv')
+        data_frame = read_csv(BytesIO(file))
+        assert archive.getinfo('look_me.csv').file_size == 57
+        assert len(data_frame.axes[0]) == 3
+        assert len(data_frame.axes[1]) == 1
 
-    with open("tmp/readme2.rst", 'wb') as download_file:
-        download_file.write(content)
 
-    with open(os.path.join(TMP_DIR, "readme2.rst"), 'wb') as download_file:
-        file_content_str = download_file.read()
-        assert "test_answer" in file_content_str
-    # browser.element("[data-testid='download-raw-button']").click()
-    # time.sleep(5)
+def test_pdf(folders, archiving):
+    with ZipFile('resources/test_archive.zip') as archive:
+        file = archive.read('pdf.pdf')
+        reader = PdfReader(BytesIO(file))
+        assert archive.getinfo('pdf.pdf').file_size == 393774
+        assert len(reader.pages) == 7
+        assert "Google Tag Manager" in reader.pages[0].extract_text()
 
+
+def test_xlsx(folders, archiving):
+    with ZipFile('resources/test_archive.zip') as archive:
+        file = archive.read('look_me.xlsx')
+        workbook = load_workbook(BytesIO(file))
+        sheet = workbook.active
+        assert archive.getinfo('look_me.xlsx').file_size == 9052
+        assert len(workbook.sheetnames) == 3
+        assert sheet.max_row == 4
+        assert sheet.max_column == 3
+        assert sheet.cell(row=2, column=2).value == 'My name is Mary'
